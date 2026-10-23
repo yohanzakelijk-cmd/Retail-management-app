@@ -1,0 +1,14 @@
+/* Retail Management - Global Theme */
+
+:root {
+  --bg: #090d12;
+  --surface: #141b25;
+  --border: #2c3746;
+  --header-border: #2a3340;
+
+  --text: #f5f7fa;
+  --text-muted: #aeb9c8;
+
+  --accent: #ffe000;
+  --accent-border: #66591a;
+}

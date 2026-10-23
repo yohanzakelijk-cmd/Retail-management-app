@@ -1,34 +1,158 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>
-    Conference Assistant</title><style>
-*{box-sizing:border-box}body{margin:0;background:#090d12;color:#f5f7fa;font-family:Segoe UI,Arial,sans-serif}header{padding:25px 6%;border-bottom:1px solid #2a3340;display:flex;justify-content:space-between;align-items:center;gap:12px}h1{margin:0;font-size:clamp(24px,4vw,32px)}header p{color:#aab4c3;margin:5px 0}.tag{color:#ffe000;border:1px solid #66591a;border-radius:20px;padding:8px 12px;font-size:12px}main{max-width:1100px;margin:auto;padding:24px 18px 60px}.notice{background:#282313;border:1px solid #66591a;color:#ffe58a;padding:13px;border-radius:12px;margin-bottom:18px}.card,.panel{background:#141b25;border:1px solid #2c3746;border-radius:15px;padding:20px}.panel{margin-bottom:16px}.uploads{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;color:#d9e2ed;font-weight:600;font-size:14px;margin-bottom:10px}input[type=file]{display:block;width:100%;max-width:100%;color:#aeb9c8;font-size:13px}input::file-selector-button{border:1px solid #46556a;background:#243044;color:#fff;border-radius:8px;padding:9px;margin-right:8px;cursor:pointer}button{background:#ffe000;color:#111;border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;margin-top:12px}button:disabled{opacity:.5;cursor:wait}.status{margin-top:12px;color:#aeb9c8;white-space:pre-wrap}.status.error{color:#ff8585}.status.ok{color:#62e49a}.sales-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}.sales-line{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:14px}.sales-line strong{font-size:clamp(18px,3vw,23px)}.sales-divider{border:0;border-top:1px solid #2c3746;margin:16px 0}.sales-note{font-size:12px;color:#aeb9c8;margin-top:6px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.label{color:#aeb9c8;font-size:14px}.value{font-size:clamp(25px,4vw,35px);font-weight:800;margin:12px 0}.positive{color:#4ce18d}.negative{color:#ff8585}.neutral{color:#aeb9c8}.bottom{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:16px}h2{font-size:19px;margin-top:0}#script{line-height:1.65;color:#dce4ef;background:#0c121a;border-radius:10px;padding:16px;white-space:pre-wrap}.small{color:#aeb9c8;font-size:13px;line-height:1.5}.hidden{display:none}@media(max-width:750px){.sales-grid,.uploads,.bottom{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:15px}}@media(max-width:420px){.grid{grid-template-columns:1fr}}
-</style></head><body><header><div><h1>Conference Assistant</h1><p>Weekly Store Performance</p></div><span class="tag" id="mode">AWAITING REPORTS</span></header><main>
-<div class="notice" id="notice">Select both Looker ZIP exports below. All processing stays on this device.</div>
-<div class="panel"><h2>Upload Looker Reports</h2><div class="uploads"><div><label for="branch">1. Branch Trade Review (.zip)</label><input id="branch" type="file" accept=".zip,application/zip"></div><div><label for="store">2. JD Store Report (.zip)</label><input id="store" type="file" accept=".zip,application/zip"></div></div><button id="process">Generate Conference Report</button><div class="status" id="status" role="status">No files loaded yet.</div></div>
-<div id="results" class="hidden"><div class="panel"><div id="period"></div></div>
-<section class="sales-grid"><div class="card"><div class="label">Sales — Percentage Comparison</div><div class="value" id="salesPctValue"></div><hr class="sales-divider"><div class="sales-line"><span class="neutral">vs Last Year</span><strong id="lyPct"></strong></div><div class="sales-note" id="lyAmount"></div><div class="sales-line"><span class="neutral">vs Target</span><strong id="targetPct"></strong></div><div class="sales-note" id="targetAmount"></div></div><div class="card"><div class="label">Sales — Difference in Euros</div><div class="value" id="salesEuroValue"></div><hr class="sales-divider"><div class="sales-line"><span class="neutral">vs Last Year</span><strong id="lyDiff"></strong></div><div class="sales-note" id="lyAmount2"></div><div class="sales-line"><span class="neutral">vs Target</span><strong id="targetDiff"></strong></div><div class="sales-note" id="targetAmount2"></div></div></section>
-<section class="grid"><div class="card"><div class="label">Conversion</div><div class="value" id="conversion"></div><div id="conversionDelta"></div></div><div class="card"><div class="label">Footfall</div><div class="value" id="footfall"></div><div id="footfallDelta"></div></div><div class="card"><div class="label">CREP Strike Rate</div><div class="value" id="crep"></div><div id="crepLY"></div></div><div class="card"><div class="label">Kiosk Sales Share</div><div class="value" id="kiosk"></div><div class="neutral">LY comparison not verified</div></div></section>
-<section class="bottom"><div class="card"><h2>Conference Script</h2><p id="script"></p><button id="copy">Copy Conference Script</button><p id="copyStatus" class="small"></p></div><div class="card"><h2>Data Checks</h2><p class="small" id="checks"></p></div></section></div>
-<p class="small">Local training version. Only load files you are authorized to process. Source: Branch Trade Review for sales, target, conversion and footfall; JD Store Report for CREP and kiosk.</p></main><script src="jszip.min.js"></script><script>
-'use strict';
-const $=id=>document.getElementById(id);
-function number(s){const n=Number(String(s??'').trim().replace(/^'/,'').replaceAll(',','').replace('%',''));if(!Number.isFinite(n))throw Error('Invalid numeric value: '+s);return n;}
-function csv(text){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(field);field='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(x=>x.trim()))rows.push(row);row=[];field='';}else field+=c;}if(quoted)throw Error('CSV has an unmatched quotation mark.');if(field||row.length){row.push(field);rows.push(row);}return rows;}
-async function loadZip(file){if(!file||!file.name.toLowerCase().endsWith('.zip'))throw Error('Please select both .zip files.');if(file.size>15*1024*1024)throw Error('ZIP file is too large (maximum 15 MB).');const z=await JSZip.loadAsync(file);const entries=Object.keys(z.files);if(entries.length>150)throw Error('ZIP contains too many files.');return {async read(name){const found=entries.filter(n=>n.toLowerCase().endsWith('/'+name)||n.toLowerCase()===name);if(found.length!==1)throw Error('Expected exactly one '+name+' in '+file.name);const entry=z.files[found[0]];if(entry.dir)throw Error('Invalid CSV entry: '+name);const data=await entry.async('string');if(data.length>2e6)throw Error('CSV file too large: '+name);return csv(data.replace(/^\uFEFF/,''));}};}
-function field(row,header,key){const i=header.findIndex(h=>h.trim().toLowerCase()===key.toLowerCase());if(i<0||row[i]===undefined)throw Error('Missing column: '+key);return number(row[i]);}
-function dateRange(text){const match=text.match(/REPORTING FROM\s+(\d{4}-\d{2}-\d{2})\s+TO\s+(\d{4}-\d{2}-\d{2})/i);if(!match)throw Error('Could not find reporting dates in report.');return match[1]+' to '+match[2];}
-const money=n=>'€'+Math.round(n).toLocaleString('en-US');const count=n=>Math.round(n).toLocaleString('en-US');const percent=n=>n.toFixed(2)+'%';const signed=(n,unit)=> (n>0?'+':'')+(unit==='money'?money(n):unit==='pp'?n.toFixed(2)+' pp':percent(n));
-function set(id,value){$(id).textContent=value;}function colored(id,n){$(id).className=n>0?'positive':n<0?'negative':'neutral';}
-async function process(){set('status','Reading ZIP files locally...');$('status').className='status';$('process').disabled=true;$('results').classList.add('hidden');try{
-const [b,s]=await Promise.all([loadZip($('branch').files[0]),loadZip($('store').files[0])]);
-const [title,days,storeCode,strike,kpi]=await Promise.all([b.read('title.csv'),b.read('filtered_date.csv'),s.read('store_code.csv'),s.read('strike_rate_(copy).csv'),s.read('kpi_performance_3___4.csv')]);
-const bRange=dateRange(title.flat().join(' '));const sRange=dateRange(storeCode.flat().join(' '));if(!bRange||!sRange||bRange!==sRange)throw Error('Reporting dates do not match: Branch '+bRange+'; Store '+sRange+'.');
-const totals=days.filter(r=>r[0]?.trim()===''&&r[1]?.trim()==='');if(totals.length!==1)throw Error('Cannot uniquely identify the weekly totals in filtered_date.csv.');const header=days[0],row=totals[0];
-const sales=field(row,header,'Gross Sales'),ly=field(row,header,'Gross Sales Comparative'),target=field(row,header,'Gross Sales Target Primary');const lyPct=field(row,header,'Gross Sales Var %'),targetPct=field(row,header,'Gross Sales Target Var %');const foot=field(row,header,'Footfall'),footVar=field(row,header,'% Var vs 1 year'),conv=field(row,header,'Conversion Primary'),convVar=field(row,header,'%pt Var vs 1 year');
-const crep=field(strike[1],strike[0],'Strike Rate TY'),crepLY=field(strike[1],strike[0],'Strike Rate LY'),kiosk=field(kpi[1],kpi[0],'Kiosk Sales Ptn');if(ly<=0||target<=0||crep<=0||crepLY<=0||foot<0||kiosk<0||kiosk>100||conv<0||conv>100)throw Error('One or more KPI values are outside expected ranges.');
-set('salesPctValue',money(sales));set('salesEuroValue',money(sales));set('lyPct',signed(lyPct));colored('lyPct',lyPct);set('targetPct',signed(targetPct));colored('targetPct',targetPct);set('lyAmount','Last Year: '+money(ly));set('lyAmount2','Last Year: '+money(ly));set('targetAmount','Target: '+money(target));set('targetAmount2','Target: '+money(target));
-set('lyDiff',signed(sales-ly,'money'));colored('lyDiff',sales-ly);set('targetDiff',signed(sales-target,'money'));colored('targetDiff',sales-target);set('conversion',percent(conv));set('conversionDelta',signed(convVar,'pp')+' vs LY');colored('conversionDelta',convVar);set('footfall',count(foot));set('footfallDelta',signed(footVar)+' vs LY');colored('footfallDelta',footVar);set('crep','1 in '+Math.round(crep));set('crepLY','LY: 1 in '+Math.round(crepLY));$('crepLY').className='neutral';set('kiosk',percent(kiosk));
-const script=`For ${bRange}, sales finished at ${money(sales)}, ${Math.abs(lyPct).toFixed(2)}% ${lyPct>=0?'above':'below'} last year and ${Math.abs(targetPct).toFixed(2)}% ${targetPct>=0?'above':'below'} target. This represents ${money(Math.abs(sales-ly))} ${sales>=ly?'above':'below'} last year and ${money(Math.abs(sales-target))} ${sales>=target?'above':'below'} target. Footfall was ${count(foot)}, ${Math.abs(footVar).toFixed(2)}% ${footVar>=0?'up':'down'} versus last year. Conversion reached ${percent(conv)}, ${Math.abs(convVar).toFixed(2)} percentage points ${convVar>=0?'up':'down'} versus last year. CREP strike rate was 1 in ${Math.round(crep)}, compared with 1 in ${Math.round(crepLY)} last year. Kiosk sales share was ${percent(kiosk)}.`;
-set('script',script);set('period','Reporting period: '+bRange);set('checks','✓ Both reports cover the same dates.\n✓ Sales, target, conversion and footfall from Branch Trade Review.\n✓ CREP and kiosk from JD Store Report.\nNote: euro differences are calculated from displayed rounded amounts; Looker may differ by €1. Kiosk LY comparison omitted until verified.');$('checks').style.whiteSpace='pre-line';set('notice','Reports processed locally. Review figures before using them in your conference.');set('mode','REPORT READY');set('status','✓ Both ZIP reports loaded successfully.');$('status').className='status ok';$('results').classList.remove('hidden');
-}catch(e){set('status','Could not generate report: '+e.message);$('status').className='status error';set('mode','AWAITING REPORTS');}finally{$('process').disabled=false;}}
-$('process').addEventListener('click',process);$('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('script').innerText);set('copyStatus','Script copied!');}catch(e){const range=document.createRange();range.selectNodeContents($('script'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);set('copyStatus','Text selected. Press Ctrl + C to copy.');}});
-</script></body></html>
+
+<>!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="theme.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retail Management</title>
+  <style>
+    * { box-sizing: border-box; }
+
+  body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: #ffffff;
+}
+    
+
+    header {
+  background: var(--bg);
+      color: white;
+      padding: 30px 20px;
+    }
+
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; color: #cbd5e1; }
+
+    main {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+    background: var(--surface);
+      border-radius: 14px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 4px 16px #0000000d;
+    }
+
+    .card h2 { font-size: 20px; }
+    .card p { color: #64748b; line-height: 1.5; }
+
+    .card.active { border: 2px solid #2563eb; }
+    .card.disabled { opacity: 0.65; }
+
+    .status {
+      font-size: 12px;
+      font-weight: bold;
+      color: #2563eb;
+    }
+/* Retail Management - Unified Dark Theme */
+
+body {
+background: var(--bg);
+  color: #ffffff;
+}
+
+header {
+background: var(--bg);
+  border-bottom: 1px solid #626b73;
+  color: #ffffff;
+}
+
+header p {
+  color: #c5cbd0;
+}
+
+main h2 {
+  color: #ffffff;
+}
+
+.card {
+  background: var(--surface);
+  color: #ffffff;
+border: 1px solid var(--border);
+  box-shadow: none;
+  transition: background 0.2s ease;
+}
+
+.card h2 {
+  color: #ffffff;
+}
+
+.card p {
+color: var(--text-muted);
+}
+
+.card.active {
+background: var(--surface);
+border: 2px solid var(--accent);
+}
+
+.card.active:hover {
+background: var(--surface);
+}
+
+.card.disabled {
+  opacity: 0.85;
+background: var(--surface);
+}
+
+.status {
+color: var(--accent);
+}
+
+.card.disabled .status {
+  color: #c3cbd0;
+}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Retail Management</h1>
+    <p>Your daily management workspace</p>
+  </header>
+
+  <main>
+    <h2>Management Tools</h2>
+    <div class="grid">
+
+      <a class="card active" href="conference.html">
+        <div class="status">AVAILABLE</div>
+        <h2>📊 Conference Assistant</h2>
+        <p>Analyze weekly KPIs and prepare your conference.</p>
+      </a>
+
+      <div class="card disabled">
+        <div class="status">COMING SOON</div>
+        <h2>📋 Task Planner</h2>
+        <p>Organize daily and weekly management tasks.</p>
+      </div>
+
+      <div class="card disabled">
+        <div class="status">COMING SOON</div>
+        <h2>👥 Staff Management</h2>
+        <p>Track team performance and development.</p>
+      </div>
+
+      <div class="card disabled">
+        <div class="status">COMING SOON</div>
+        <h2>📦 Audit Preparation</h2>
+        <p>Plan and monitor stock audit preparation.</p>
+      </div>
+
+    </div>
+  </main>
+</body>
+</html>
