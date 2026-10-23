@@ -12,3 +12,88 @@
   --accent: #ffe000;
   --accent-border: #66591a;
 }
+
+/* Hide scrollbar while keeping scrolling enabled */
+html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Home navigation button */
+.home-link {
+    position: fixed;
+    top: 85px;
+    right: 16px;
+    z-index: 1000;
+    padding: 10px 14px;
+    background: var(--surface);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.home-link:hover {
+    border-color: var(--accent);
+}
+
+/* Navigation dropdown */
+.nav-menu {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+}
+
+.nav-menu summary {
+  list-style: none;
+  cursor: pointer;
+  background: #141b25;
+  color: #ffe000;
+  border: 1px solid #66591a;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 700;
+}
+
+.nav-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-menu nav {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  width: 260px;
+  max-width: calc(100vw - 32px);
+  background: #141b25;
+  border: 1px solid #2c3746;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 12px 30px #0008;
+}
+
+.nav-menu nav a,
+.nav-menu nav span {
+  display: block;
+  padding: 12px;
+  color: #f5f7fa;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.nav-menu nav a:hover {
+  background: #2c3746;
+}
+
+.nav-menu nav span {
+  color: #aeb9c8;
+  opacity: 0.65;
+}
